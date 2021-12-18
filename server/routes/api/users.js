@@ -29,6 +29,29 @@ router.route("/register")
         }
     })
 
+router.route("/signin")
+    .post(async (req, res) => {
+        try {
+            // find user
+            let user = await User.findOne({ email: req.body.email })
+            if (!user) return res.status(400).json({ message: 'Bad email' });
+
+            // compare password
+            const compare = await user.comparePassword(req.body.password);
+            if (!compare) return res.status(400).json({ message: 'Bad password' });
+
+            //generate token
+            const token = user.generateToken();
+
+            //response
+            res.cookie('access-token', token)
+                .status(200).send(getUserProps(user));
+        } catch (error) {
+            res.status(400).json({ message: 'Error', error: error })
+        }
+
+    })
+
 const getUserProps = (user) => {
     return {
         _id: user._id,
