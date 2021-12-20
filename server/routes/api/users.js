@@ -5,6 +5,7 @@ require('dotenv').config();
 
 const { User } = require('../../models/user_model');
 const { checkUserExists } = require('../../middleware/auth');
+const { grantAccess } = require('../../middleware/roles');
 
 router.route("/register")
     .post(async (req, res) => {
@@ -53,9 +54,16 @@ router.route("/signin")
     })
 
 router.route("/profile")
-    .get(checkUserExists, async (req, res) => {
-        console.log(req.user);
-        res.status(200).send("ok");
+    .get(checkUserExists, grantAccess('readOwn', 'profile'), async (req, res) => {
+        try {
+            const permission = res.locals.permission;
+            const user = await User.findById(req.user._id);
+            if (!user) return res.status(400).json({ message: 'User not found' });
+
+            res.status(200).json(permission.filter(user._doc));
+        } catch (error) {
+            return res.status(400).send(error);
+        }
     })
 
 const getUserProps = (user) => {
