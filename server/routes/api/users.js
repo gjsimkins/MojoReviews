@@ -65,6 +65,56 @@ router.route("/profile")
             return res.status(400).send(error);
         }
     })
+    .patch(checkUserExists, grantAccess('updateOwn', 'profile'), async (req, res) => {
+        try {
+            const user = await User.findOneAndUpdate(
+                { _id: req.user._id },
+                {
+                    "$set": {
+                        firstname: req.body.firstname,
+                        lastname: req.body.lastname,
+                        username: req.body.username
+                    }
+                },
+                { new: true }
+            );
+            if (!user) return res.status(400).json({ message: 'User not found' })
+            res.status(200).json(getUserProps(user))
+        } catch (error) {
+            return res.status(400).json({ mesage: "Problem updating", error: error });
+        }
+    })
+
+router.route("/update_email")
+    .patch(checkUserExists, grantAccess('updateOwn', 'profile'), async (req, res) => {
+        try {
+            if (await User.emailTaken(req.body.newemail)) {
+                return res.status(400).json({ message: "Email taken" })
+            }
+
+            const user = await User.findOneAndUpdate(
+                { _id: req.user._id, email: req.body.email },
+                {
+                    "$set": {
+                        email: req.body.newemail
+                    }
+                },
+                { new: true }
+            );
+            if (!user) return res.status(400).json({ message: 'User not found' })
+
+            const token = user.generateToken();
+            res.cookie('access-token', token)
+                .status(200).send({ email: user.email })
+        } catch (error) {
+            return res.status(400).json({ mesage: "Problem updating", error: error });
+        }
+    })
+
+router.route('/isauth')
+    .get(checkUserExists, async (req, res) => {
+        res.status(200).send(getUserProps(req.user))
+    })
 
 const getUserProps = (user) => {
     return {
